@@ -2,9 +2,9 @@
 
 namespace mdm\admin\models;
 
-use Yii;
-use yii\base\Object;
+use mdm\admin\components\Configs;
 use mdm\admin\components\Helper;
+use Yii;
 
 /**
  * Description of Assignment
@@ -12,7 +12,7 @@ use mdm\admin\components\Helper;
  * @author Misbahul D Munir <misbahuldmunir@gmail.com>
  * @since 2.5
  */
-class Assignment extends Object
+class Assignment extends \mdm\admin\BaseObject
 {
     /**
      * @var integer User id
@@ -40,12 +40,12 @@ class Assignment extends Object
      */
     public function assign($items)
     {
-        $manager = Yii::$app->getAuthManager();
+        $manager = Configs::authManager();
         $success = 0;
         foreach ($items as $name) {
             try {
                 $item = $manager->getRole($name);
-                $item = $item ? : $manager->getPermission($name);
+                $item = $item ?: $manager->getPermission($name);
                 $manager->assign($item, $this->id);
                 $success++;
             } catch (\Exception $exc) {
@@ -63,12 +63,12 @@ class Assignment extends Object
      */
     public function revoke($items)
     {
-        $manager = Yii::$app->getAuthManager();
+        $manager = Configs::authManager();
         $success = 0;
         foreach ($items as $name) {
             try {
                 $item = $manager->getRole($name);
-                $item = $item ? : $manager->getPermission($name);
+                $item = $item ?: $manager->getPermission($name);
                 $manager->revoke($item, $this->id);
                 $success++;
             } catch (\Exception $exc) {
@@ -80,32 +80,32 @@ class Assignment extends Object
     }
 
     /**
-     * Get all avaliable and assigned roles/permission
+     * Get all available and assigned roles/permission
      * @return array
      */
     public function getItems()
     {
-        $manager = Yii::$app->getAuthManager();
-        $avaliable = [];
+        $manager = Configs::authManager();
+        $available = [];
         foreach (array_keys($manager->getRoles()) as $name) {
-            $avaliable[$name] = 'role';
+            $available[$name] = 'role';
         }
 
         foreach (array_keys($manager->getPermissions()) as $name) {
             if ($name[0] != '/') {
-                $avaliable[$name] = 'permission';
+                $available[$name] = 'permission';
             }
         }
 
         $assigned = [];
         foreach ($manager->getAssignments($this->id) as $item) {
-            $assigned[$item->roleName] = $avaliable[$item->roleName];
-            unset($avaliable[$item->roleName]);
+            $assigned[$item->roleName] = $available[$item->roleName];
+            unset($available[$item->roleName]);
         }
 
-        return[
-            'avaliable' => $avaliable,
-            'assigned' => $assigned
+        return [
+            'available' => $available,
+            'assigned' => $assigned,
         ];
     }
 

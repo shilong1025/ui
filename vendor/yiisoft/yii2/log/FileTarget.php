@@ -26,7 +26,7 @@ use yii\helpers\FileHelper;
 class FileTarget extends Target
 {
     /**
-     * @var string log file path or path alias. If not set, it will use the "@runtime/logs/app.log" file.
+     * @var string log file path or [path alias](guide:concept-aliases). If not set, it will use the "@runtime/logs/app.log" file.
      * The directory containing the log files will be automatically created if not existing.
      */
     public $logFile;
@@ -38,28 +38,28 @@ class FileTarget extends Target
      */
     public $enableRotation = true;
     /**
-     * @var integer maximum log file size, in kilo-bytes. Defaults to 10240, meaning 10MB.
+     * @var int maximum log file size, in kilo-bytes. Defaults to 10240, meaning 10MB.
      */
     public $maxFileSize = 10240; // in KB
     /**
-     * @var integer number of log files used for rotation. Defaults to 5.
+     * @var int number of log files used for rotation. Defaults to 5.
      */
     public $maxLogFiles = 5;
     /**
-     * @var integer the permission to be set for newly created log files.
+     * @var int the permission to be set for newly created log files.
      * This value will be used by PHP chmod() function. No umask will be applied.
      * If not set, the permission will be determined by the current environment.
      */
     public $fileMode;
     /**
-     * @var integer the permission to be set for newly created directories.
+     * @var int the permission to be set for newly created directories.
      * This value will be used by PHP chmod() function. No umask will be applied.
      * Defaults to 0775, meaning the directory is read-writable by owner and group,
      * but read-only for other users.
      */
     public $dirMode = 0775;
     /**
-     * @var boolean Whether to rotate log files by copy and truncate in contrast to rotation by
+     * @var bool Whether to rotate log files by copy and truncate in contrast to rotation by
      * renaming files. Defaults to `true` to be more compatible with log tailers and is windows
      * systems which do not play well with rename on open files. Rotation by renaming however is
      * a bit faster.
@@ -141,18 +141,49 @@ class FileTarget extends Target
                 // suppress errors because it's possible multiple processes enter into this section
                 if ($i === $this->maxLogFiles) {
                     @unlink($rotateFile);
-                } else {
-                    if ($this->rotateByCopy) {
-                        @copy($rotateFile, $file . '.' . ($i + 1));
-                        if ($fp = @fopen($rotateFile, 'a')) {
-                            @ftruncate($fp, 0);
-                            @fclose($fp);
-                        }
-                    } else {
-                        @rename($rotateFile, $file . '.' . ($i + 1));
-                    }
+                    continue;
+                }
+                $newFile = $this->logFile . '.' . ($i + 1);
+                $this->rotateByCopy ? $this->rotateByCopy($rotateFile, $newFile) : $this->rotateByRename($rotateFile, $newFile);
+                if ($i === 0) {
+                    $this->clearLogFile($rotateFile);
                 }
             }
         }
+    }
+
+    /***
+     * Clear log file without closing any other process open handles
+     * @param string $rotateFile
+     */
+    private function clearLogFile($rotateFile)
+    {
+        if ($filePointer = @fopen($rotateFile, 'a')) {
+            @ftruncate($filePointer, 0);
+            @fclose($filePointer);
+        }
+    }
+
+    /***
+     * Copy rotated file into new file
+     * @param string $rotateFile
+     * @param string $newFile
+     */
+    private function rotateByCopy($rotateFile, $newFile)
+    {
+        @copy($rotateFile, $newFile);
+        if ($this->fileMode !== null) {
+            @chmod($newFile, $this->fileMode);
+        }
+    }
+
+    /**
+     * Renames rotated file into new file
+     * @param string $rotateFile
+     * @param string $newFile
+     */
+    private function rotateByRename($rotateFile, $newFile)
+    {
+        @rename($rotateFile, $newFile);
     }
 }
